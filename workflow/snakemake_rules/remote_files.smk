@@ -42,6 +42,9 @@ def _remote_producer(remote_name, init):
     If the remote module is not available because required dependencies aren't
     installed, then a :exc:`WorkflowError` exception object is returned on the
     first call of the producer.
+
+    根据名称获取remote input函数？
+    这个函数严重依赖snakemake.remote模块
     """
     # Name of first argument to *init*.
     remote = None
