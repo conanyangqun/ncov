@@ -60,6 +60,7 @@ def numeric_date(dt=None):
 
     return res
 
+# 根据build名称从配置中获取抽样信息
 def _get_subsampling_scheme_by_build_name(build_name):
     return config["builds"].get(build_name, {}).get("subsampling_scheme", build_name)
 
@@ -86,6 +87,7 @@ def _get_skipped_inputs_for_diagnostic(wildcards):
 
     return argument
 
+# 根据长度过滤的表达式
 def _get_filter_min_length_query(wildcards):
     """Build a sequence length filter query for each input, checking for
     input-specific length requirements.
@@ -146,6 +148,7 @@ def _get_path_for_input(stage, origin_wildcard):
         raise Exception(f"_get_path_for_input with unknown stage \"{stage}\"")
 
 
+# 根据输入数据集获取元信息文件名
 def _get_unified_metadata(wildcards):
     """
     Returns a single metadata file representing the input metadata file(s).
@@ -163,6 +166,7 @@ def _get_unified_metadata(wildcards):
 
     return "results/combined_metadata.tsv.xz"
 
+# 根据输入数据集判断输出的fasta文件名
 def _get_unified_alignment(wildcards):
     if len(list(config["inputs"].keys()))==1:
         return _get_path_for_input("aligned", list(config["inputs"].keys())[0])

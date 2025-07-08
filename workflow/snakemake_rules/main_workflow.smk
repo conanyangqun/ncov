@@ -1,3 +1,4 @@
+# 清理元数据
 rule sanitize_metadata:
     input:
         metadata=lambda wildcards: _get_path_for_input("metadata", wildcards.origin)
@@ -32,6 +33,7 @@ rule sanitize_metadata:
         """
 
 
+# 合并多个输入的元信息
 rule combine_input_metadata:
     # this rule is intended to be run _only_ if we have defined multiple inputs ("origins")
     message:
@@ -57,6 +59,7 @@ rule combine_input_metadata:
         python3 scripts/combine_metadata.py --metadata {input.metadata} --origins {params.origins} --output {output.metadata} 2>&1 | tee {log}
         """
 
+# 多序列比对
 rule align:
     message:
         """
@@ -98,6 +101,7 @@ rule align:
         xz -2 -T {threads} {params.uncompressed_alignment};
         """
 
+# 返回抽样配置
 def _get_subsampling_settings(wildcards):
     # Allow users to override default subsampling with their own settings keyed
     # by location type and name. For example, "region_europe" or
@@ -135,6 +139,7 @@ def _get_subsampling_settings(wildcards):
     return subsampling_settings
 
 
+# 优先考虑的序列?
 def get_priorities(wildcards):
     subsampling_settings = _get_subsampling_settings(wildcards)
 
@@ -179,6 +184,7 @@ def _get_specific_subsampling_setting(setting, optional=False):
                 raise Exception(f"The requested build name {wildcards.build_name!r} does not exist in the given configuration file. This error occurred while looking up the subsampling setting {setting!r}. This missing build might indicate a typo in the build name.")
 
             build = config["builds"][wildcards.build_name]
+            # 部分配置中带有{},根据build中的信息执行格式化填充
             value = value.format(**build)
             if value !="":
                 if setting == 'exclude_ambiguous_dates_by':
@@ -208,6 +214,7 @@ def _get_specific_subsampling_setting(setting, optional=False):
     return _get_setting
 
 
+# 合并多个来源的序列
 rule combine_sequences_for_subsampling:
     # Similar to rule combine_input_metadata, this rule should only be run if multiple inputs are being used (i.e. multiple origins)
     message:
@@ -234,6 +241,7 @@ rule combine_sequences_for_subsampling:
                 | xz -c -2 > {output}
         """
 
+# 索引序列
 rule index_sequences:
     message:
         """
@@ -262,6 +270,7 @@ rule index_sequences:
             --output {output.sequence_index} 2>&1 | tee {log}
         """
 
+# 执行抽样
 rule subsample:
     message:
         """
@@ -328,6 +337,7 @@ rule subsample:
             --output-strains {output.strains} 2>&1 | tee {log}
         """
 
+# 提取抽样后的序列
 rule extract_subsampled_sequences:
     input:
         metadata = _get_unified_metadata,
@@ -356,6 +366,7 @@ rule extract_subsampled_sequences:
             --output-sequences {output.subsampled_sequences} 2>&1 | tee {log}
         """
 
+# 计算序列与focal序列的遗传相似性
 rule proximity_score:
     message:
         """
@@ -390,6 +401,7 @@ rule proximity_score:
             --output {output.proximities} 2>&1 | tee {log}
         """
 
+# 计算优先级评分
 rule priority_score:
     input:
         proximity = rules.proximity_score.output.proximities,
@@ -412,7 +424,7 @@ rule priority_score:
             --output {output.priorities} 2>&1 | tee {log}
         """
 
-
+# 获取所有抽样方案的结果
 def _get_subsampled_files(wildcards):
     subsampling_settings = _get_subsampling_settings(wildcards)
 
@@ -421,6 +433,7 @@ def _get_subsampled_files(wildcards):
         for subsample in subsampling_settings
     ]
 
+# 合并所有抽样的序列和元信息
 rule combine_samples:
     message:
         """
@@ -449,6 +462,7 @@ rule combine_samples:
             --output-metadata {output.metadata} 2>&1 | tee {log}
         """
 
+# 下载新冠的nextclade数据
 rule prepare_nextclade:
     message:
         """
@@ -465,6 +479,7 @@ rule prepare_nextclade:
         nextclade dataset get --name {params.name} --output-zip {output.nextclade_dataset}
         """
 
+# 运行nextclade QC和比对
 rule build_align:
     message:
         """
@@ -505,6 +520,7 @@ rule build_align:
             --output-translations {params.output_translations} 2>&1 | tee {log}
         """
 
+# 合并元信息和nextclade QC结果
 rule join_metadata_and_nextclade_qc:
     input:
         metadata = "results/{build_name}/{build_name}_subsampled_metadata.tsv.xz",
@@ -524,6 +540,7 @@ rule join_metadata_and_nextclade_qc:
             -o {output.metadata} 2>&1 | tee {log}
         """
 
+# 根据元信息过滤序列，获得需要过滤的菌株
 rule diagnostic:
     message: "Scanning metadata {input.metadata} for problematic sequences. Removing sequences with >{params.clock_filter} deviation from the clock and with more than {params.snp_clusters}."
     input:
@@ -554,6 +571,7 @@ rule diagnostic:
             --output-exclusion-list {output.to_exclude} 2>&1 | tee {log}
         """
 
+# 获取所有需要去除的菌株
 def _collect_exclusion_files(wildcards):
     # This rule creates a per-input exclude file for `rule filter`. This file contains one or both of the following:
     # (1) a config-defined exclude file
@@ -563,6 +581,7 @@ def _collect_exclusion_files(wildcards):
         return [ config["files"]["exclude"] ]
     return [ config["files"]["exclude"], f"results/{wildcards.build_name}/excluded_by_diagnostics.txt" ]
 
+# 屏蔽一些位点
 rule mask:
     message:
         """
@@ -595,6 +614,7 @@ rule mask:
             --output {output.alignment} 2> {log}
         """
 
+# 压缩抽样序列的比对结果
 rule compress_build_align:
     message:
         """Compressing {input.alignment}"""
@@ -613,6 +633,7 @@ rule compress_build_align:
         xz -c {input} > {output} 2> {log}
         """
 
+# 索引mask后的序列
 rule index:
     message:
         """
@@ -634,6 +655,7 @@ rule index:
             --output {output.sequence_index} 2>&1 | tee {log}
         """
 
+# 在元信息上添加序列索引信息
 rule annotate_metadata_with_index:
     input:
         metadata="results/{build_name}/metadata_with_nextclade_qc.tsv",
@@ -653,6 +675,7 @@ rule annotate_metadata_with_index:
             --output {output.metadata}
         """
 
+# 过滤序列
 rule filter:
     message:
         """
@@ -702,6 +725,7 @@ rule filter:
             --output-log {output.filter_log} 2>&1 | tee {log};
         """
 
+# 校正元信息
 # TODO: This will probably not work for build names like "country_usa" where we need to know the country is "USA".
 rule adjust_metadata_regions:
     message:
@@ -729,6 +753,7 @@ rule adjust_metadata_regions:
             --output {output.metadata} 2>&1 | tee {log}
         """
 
+# 构建系统发育树
 rule tree:
     message: "Building tree"
     input:
@@ -759,6 +784,7 @@ rule tree:
             --nthreads {threads} 2>&1 | tee {log}
         """
 
+# 修正系统发育树
 rule refine:
     message:
         """
@@ -816,6 +842,7 @@ rule refine:
             {params.clock_filter_iqd} 2>&1 | tee {log}
         """
 
+# 重建祖先序列和突变
 rule ancestral:
     message:
         """
@@ -849,6 +876,7 @@ rule ancestral:
             --infer-ambiguous 2>&1 | tee {log}
         """
 
+# 翻译氨基酸序列
 rule translate:
     message: "Translating amino acid sequences"
     input:
@@ -880,6 +908,7 @@ rule translate:
             --output {output.node_data} 2>&1 | tee {log}
         """
 
+# 计算序列之间的距离
 rule distances:
     input:
         tree = rules.refine.output.tree,
@@ -905,6 +934,7 @@ rule distances:
             --output {output}
         """
 
+# 推断祖先特征
 rule traits:
     message:
         """
@@ -938,12 +968,14 @@ rule traits:
             --sampling-bias-correction {params.sampling_bias_correction} 2>&1 | tee {log}
         """
 
+# 获取clade定义文件
 def _get_clade_files(wildcards):
     if "subclades" in config["builds"].get(wildcards.build_name, {}):
         return [config["files"]["clades"], config["builds"][wildcards.build_name]["subclades"]]
     else:
         return config["files"]["clades"]
 
+# 预处理clade文件，调和定义文件和显示名称
 rule clade_files:
     input:
         clade_files = _get_clade_files
@@ -961,6 +993,7 @@ rule clade_files:
             --output-clades {output}
         """
 
+# 为内部节点添加clade标签
 rule clades:
     message: "Adding internal clade labels"
     input:
@@ -986,6 +1019,7 @@ rule clades:
             --output-node-data {output.clade_data} 2>&1 | tee {log}
         """
 
+# 添加正在出现的谱系
 rule emerging_lineages:
     message: "Adding emerging clade labels"
     input:
@@ -1014,6 +1048,7 @@ rule emerging_lineages:
             --output-node-data {output.clade_data} 2>&1 | tee {log}
         """
 
+# 构建配色文件
 rule colors:
     message: "Constructing colors file"
     input:
@@ -1046,6 +1081,7 @@ rule colors:
             --metadata {input.metadata} 2>&1 | tee {log}
         """
 
+# 根据提交时间构建最近提交
 rule recency:
     message: "Use metadata on submission date to construct submission recency field"
     input:
@@ -1067,6 +1103,7 @@ rule recency:
             --output {output} 2>&1 | tee {log}
         """
 
+# 推断末端的频率
 rule tip_frequencies:
     message: "Estimating censored KDE frequencies for tips"
     input:
@@ -1104,6 +1141,7 @@ rule tip_frequencies:
             --output {output.tip_frequencies_json} 2>&1 | tee {log}
         """
 
+#  mlr谱系适应性
 rule mlr_lineage_fitness:
     input:
         metadata="results/{build_name}/metadata_adjusted.tsv.xz",
@@ -1125,6 +1163,7 @@ rule mlr_lineage_fitness:
             --output-node-data {output.node_data} 2>&1 | tee {log}
         """
 
+# 计算流行病学周
 rule calculate_epiweeks:
     input:
         metadata="results/{build_name}/metadata_adjusted.tsv.xz",
@@ -1146,6 +1185,7 @@ rule calculate_epiweeks:
             --output-node-data {output.node_data} 2>&1 | tee {log}
         """
 
+# 寻找聚类簇
 rule find_clusters:
     input:
         tree="results/{build_name}/tree_raw.nwk",
@@ -1265,6 +1305,7 @@ def get_auspice_config(w):
     return config["files"]["auspice_config"]
 
 
+# 导出数据给auspice
 rule export:
     message: "Exporting data files for Auspice"
     input:
@@ -1303,6 +1344,7 @@ rule export:
             --output {output.auspice_json} 2>&1 | tee {log}
         """
 
+# 在菌株名前添加hCoV-19前缀
 rule include_hcov19_prefix:
     message: "Rename strains to include hCoV-19/ prefix"
     input:
@@ -1326,6 +1368,7 @@ rule include_hcov19_prefix:
             --output-tip-frequencies {output.tip_frequencies}
         """
 
+# 最终处理
 rule finalize:
     message: "Remove extraneous colorings for main build and move frequencies"
     input:
