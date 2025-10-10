@@ -18,6 +18,7 @@ slack_channel: "#ncov-gisaid-updates"
 
 genes: ["ORF1a", "ORF1b", "S", "ORF3a", "E", "M", "ORF6", "ORF7a", "ORF7b", "ORF8", "N", "ORF9b"]
 include_hcov19_prefix: True
+warning: "Warning: The GISAID EpiCoV API has not been updated since Sept 27, 2025. The analysis is no longer up-to-date."
 
 files:
   description: "nextstrain_profiles/nextstrain-gisaid/nextstrain_description.md"
