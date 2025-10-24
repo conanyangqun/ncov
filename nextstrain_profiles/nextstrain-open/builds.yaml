@@ -18,7 +18,7 @@ slack_channel: "#ncov-genbank-updates"
 
 genes: ["ORF1a", "ORF1b", "S", "ORF3a", "E", "M", "ORF6", "ORF7a", "ORF7b", "ORF8", "N", "ORF9b"]
 include_hcov19_prefix: False
-warning: >
+warning: >-
   This open (NCBI / GenBank) analysis is now our default view into SARS-CoV-2
   evolution. Previously we defaulted to GISAID-sourced data, however on October
   1st, 2025 GISAID indicated they will no longer update the flat file they
